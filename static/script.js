@@ -3,6 +3,7 @@ let word = '';
 let currentGuess = '';
 let currentRow = 0;
 const maxRows = 6;
+const themeToggle = document.getElementById("theme-toggle");
 
 document.addEventListener("DOMContentLoaded", () => {
     createBoard();
@@ -29,6 +30,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelector(".icon-button[title='Info']").onclick = () => {
         document.getElementById("info-modal").classList.add("show");
+    };
+
+    // Load saved theme preference on page load
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "light") {
+    document.body.classList.add("light-mode");
+    themeToggle.textContent = "🌞";
+    } else {
+    document.body.classList.remove("light-mode");
+    themeToggle.textContent = "🌙";
+    }
+
+    // Toggle + persist
+    themeToggle.onclick = () => {
+    const isLight = document.body.classList.toggle("light-mode");
+    localStorage.setItem("theme", isLight ? "light" : "dark");
+    themeToggle.textContent = isLight ? "🌞" : "🌙";
+    };
+
+    // AI mode toggle
+    let aiMode = false;
+    const aiToggle = document.getElementById("ai-toggle");
+    aiToggle.onclick = () => {
+    aiMode = !aiMode;
+    aiToggle.classList.toggle("active", aiMode);
+    // We'll use `aiMode` later when implementing logic
     };
 
 });
