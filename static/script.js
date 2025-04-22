@@ -1,28 +1,30 @@
-const DEBUG_MODE = false; // ← Set to false for normal mode
+const DEBUG_MODE = false;
 let word = '';
 let currentGuess = '';
 let currentRow = 0;
 const maxRows = 6;
+let guessHistory = [];
+let aiMode = false;
 const themeToggle = document.getElementById("theme-toggle");
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    [answerWords, validWords] = await Promise.all([
+        loadWordList("/static/answers.txt"),
+        loadWordList("/static/valid_guesses.txt")
+    ]);
+    setWordLists(validWords, answerWords);
+
+    word = answerWords[Math.floor(Math.random() * answerWords.length)];
+
     createBoard();
 
     if (DEBUG_MODE) {
-        // Don't add keydown listener yet
         chooseDebugWord();
     } else {
-        fetch("https://random-word-api.herokuapp.com/word?length=5")
-            .then(res => res.json())
-            .then(data => word = data[0].toLowerCase());
-
-        // Only safe to enable board input in non-debug mode
         document.addEventListener("keydown", handleKeyPress);
     }
 
-    document.getElementById("end-reload").onclick = () => {
-        window.location.reload();
-      };
+    document.getElementById("end-reload").onclick = () => window.location.reload();
 
     document.getElementById("info-close").onclick = () => {
         document.getElementById("info-modal").classList.remove("show");
@@ -32,32 +34,30 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("info-modal").classList.add("show");
     };
 
-    // Load saved theme preference on page load
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "light") {
-    document.body.classList.add("light-mode");
-    themeToggle.textContent = "🌞";
+        document.body.classList.add("light-mode");
+        themeToggle.textContent = "🌞";
     } else {
-    document.body.classList.remove("light-mode");
-    themeToggle.textContent = "🌙";
+        document.body.classList.remove("light-mode");
+        themeToggle.textContent = "🌙";
     }
 
-    // Toggle + persist
     themeToggle.onclick = () => {
-    const isLight = document.body.classList.toggle("light-mode");
-    localStorage.setItem("theme", isLight ? "light" : "dark");
-    themeToggle.textContent = isLight ? "🌞" : "🌙";
+        const isLight = document.body.classList.toggle("light-mode");
+        localStorage.setItem("theme", isLight ? "light" : "dark");
+        themeToggle.textContent = isLight ? "🌞" : "🌙";
     };
 
-    // AI mode toggle
-    let aiMode = false;
     const aiToggle = document.getElementById("ai-toggle");
     aiToggle.onclick = () => {
-    aiMode = !aiMode;
-    aiToggle.classList.toggle("active", aiMode);
-    // We'll use `aiMode` later when implementing logic
-    };
+        aiMode = !aiMode;
+        aiToggle.classList.toggle("active", aiMode);
 
+        if (aiMode && currentGuess === '' && currentRow < maxRows) {
+            setTimeout(playSolverGuess, 800);
+        }
+    };
 });
 
 function createBoard() {
@@ -84,18 +84,14 @@ function handleKeyPress(e) {
         validateGuess(currentGuess).then(isValid => {
             if (!isValid) {
                 showMessage("Not in dictionary!");
-
-                // Trigger shake on the current row
                 row.classList.add("shake");
                 setTimeout(() => row.classList.remove("shake"), 400);
-
                 return;
             }
 
             const target = word.split("");
             const guess = currentGuess.split("");
 
-            // Step 1: Build letter count
             const letterCount = {};
             for (let i = 0; i < 5; i++) {
                 const ch = target[i];
@@ -104,7 +100,6 @@ function handleKeyPress(e) {
 
             const colors = Array(5).fill("absent");
 
-            // Step 2: Mark greens
             for (let i = 0; i < 5; i++) {
                 if (guess[i] === target[i]) {
                     colors[i] = "correct";
@@ -112,7 +107,6 @@ function handleKeyPress(e) {
                 }
             }
 
-            // Step 3: Mark yellows
             for (let i = 0; i < 5; i++) {
                 if (colors[i] === "correct") continue;
                 if (target.includes(guess[i]) && letterCount[guess[i]] > 0) {
@@ -121,7 +115,8 @@ function handleKeyPress(e) {
                 }
             }
 
-            // Step 4: Apply animations and colors
+            guessHistory.push({ guess: currentGuess, result: colors });
+
             for (let i = 0; i < 5; i++) {
                 const tile = row.children[i];
                 const color = colors[i];
@@ -135,16 +130,19 @@ function handleKeyPress(e) {
                 }, i * 400);
             }
 
-            // Step 5: Move on to next row
             if (currentGuess === word) {
                 disableInput();
-                showEndModal(true);                
+                showEndModal(true);
             } else if (currentRow === maxRows - 1) {
                 disableInput();
-                showEndModal(false);                
+                showEndModal(false);
             } else {
                 currentRow++;
                 currentGuess = '';
+
+                if (aiMode) {
+                    setTimeout(playSolverGuess, 1000);
+                }
             }
         });
     } else if (e.key === "Backspace") {
@@ -161,6 +159,31 @@ function handleKeyPress(e) {
     }
 }
 
+function simulateTyping(word) {
+    if (!word || word.length !== 5) return;
+    let i = 0;
+
+    function pressNextLetter() {
+        if (i < 5) {
+            const e = new KeyboardEvent("keydown", { key: word[i] });
+            document.dispatchEvent(e);
+            i++;
+            setTimeout(pressNextLetter, 150);
+        } else {
+            const enter = new KeyboardEvent("keydown", { key: "Enter" });
+            setTimeout(() => document.dispatchEvent(enter), 250);
+        }
+    }
+
+    pressNextLetter();
+}
+
+function playSolverGuess() {
+    updatePossibleWords(guessHistory);
+    const guess = getBestGuess();
+    simulateTyping(guess);
+}
+
 function chooseDebugWord() {
     const modal = document.getElementById("debug-modal");
     const input = document.getElementById("debug-input");
@@ -168,7 +191,6 @@ function chooseDebugWord() {
     const error = document.getElementById("debug-error");
     const gameSection = document.getElementById("game-section");
 
-    // Show modal and disable background
     modal.classList.add("show");
     input.focus();
     error.textContent = "";
@@ -191,8 +213,6 @@ function chooseDebugWord() {
                 modal.classList.remove("show");
                 document.addEventListener("keydown", handleKeyPress);
                 gameSection?.removeAttribute("aria-hidden");
-
-                // Remove input listener after valid submission
                 input.removeEventListener("keydown", enterListener);
             } else {
                 error.textContent = "That word isn't valid. Try again.";
@@ -201,39 +221,22 @@ function chooseDebugWord() {
         });
     }
 
-    // Submit on button click
     button.onclick = submitDebugWord;
 
-    // Prevent stacking: define a reusable listener and remove it on success
     function enterListener(e) {
-        if (e.key === "Enter") {
-            submitDebugWord();
-        }
+        if (e.key === "Enter") submitDebugWord();
     }
 
-    // Add only once
     input.removeEventListener("keydown", enterListener);
     input.addEventListener("keydown", enterListener, { once: false });
 }
 
-
-
-if (!DEBUG_MODE) {
-    console.log("Secret word:", word);
-}
-
 function showMessage(msg) {
     const msgContainer = document.getElementById("message-container");
-
     msgContainer.textContent = msg;
-    msgContainer.classList.remove("show"); // reset if already showing
-
-    // Trigger reflow so the fade works again if message repeats
+    msgContainer.classList.remove("show");
     void msgContainer.offsetWidth;
-
     msgContainer.classList.add("show");
-
-    // Auto-hide after 3 seconds
     setTimeout(() => {
         msgContainer.classList.remove("show");
     }, 3000);
@@ -243,25 +246,39 @@ function showEndModal(won) {
     const modal = document.getElementById("end-modal");
     const title = document.getElementById("end-title");
     const subtext = document.getElementById("end-subtext");
+    const breakdown = document.getElementById("end-breakdown");
 
     if (won) {
-        title.textContent = "You win! 🎉";
-        subtext.textContent = "";
+        title.textContent = aiMode ? "AI wins! 🤖" : "You win! 🎉";
+        subtext.textContent = aiMode ? "Solved with AI assistance." : "";
     } else {
-        title.textContent = "You lost!";
+        title.textContent = aiMode ? "AI failed. 😢" : "You lost!";
         subtext.textContent = `The word was: ${word.toUpperCase()}`;
     }
+
+    // Generate emoji-based breakdown
+    const lines = guessHistory.map(({ result }) =>
+        result.map(r =>
+            r === "correct" ? "🟩" :
+            r === "present" ? "🟨" :
+            "⬜"
+        ).join("")
+    );
+    breakdown.textContent = lines.join("\n");
 
     modal.classList.add("show");
 }
 
-
 function validateGuess(word) {
-    return fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
-        .then(res => res.status === 200)
-        .catch(() => false);
+    return Promise.resolve(validWords.includes(word));
 }
 
 function disableInput() {
     document.removeEventListener("keydown", handleKeyPress);
+}
+
+async function loadWordList(url) {
+    const res = await fetch(url);
+    const text = await res.text();
+    return text.trim().split("\n").map(w => w.toLowerCase());
 }

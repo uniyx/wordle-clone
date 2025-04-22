@@ -56,6 +56,7 @@
         <div class="modal-content">
             <h2 id="end-title">You win! 🎉</h2>
             <p id="end-subtext"></p>
+            <pre id="end-breakdown" style="margin-top: 10px; font-size: 1.2rem;"></pre>
             <button id="end-reload">Play Again</button>
         </div>
     </div>
@@ -69,6 +70,7 @@
         </p>
     </footer>
 
+    <script src="{{ url_for('static', filename='solver.js') }}"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 
