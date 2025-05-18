@@ -14,7 +14,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     ]);
     setWordLists(validWords, answerWords);
 
-    word = answerWords[Math.floor(Math.random() * answerWords.length)];
+    // Check URL for base64 custom word
+    const urlParams = new URLSearchParams(window.location.search);
+    const encodedWord = urlParams.get("w");
+
+    if (encodedWord) {
+        try {
+            const decoded = atob(encodedWord).toLowerCase();
+            if (decoded.length === 5 && validWords.includes(decoded)) {
+                word = decoded;
+                console.log("Loaded custom word from URL:", word);
+            } else {
+                console.warn("Invalid custom word in URL. Using fallback.");
+                word = answerWords[Math.floor(Math.random() * answerWords.length)];
+            }
+        } catch (e) {
+            console.error("Error decoding custom word:", e);
+            word = answerWords[Math.floor(Math.random() * answerWords.length)];
+        }
+    } else {
+        word = answerWords[Math.floor(Math.random() * answerWords.length)];
+    }
 
     createBoard();
 
@@ -94,11 +114,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             resetBoard();
 
+            const encoded = btoa(word);  // base64 encode
+            const newURL = `${window.location.origin}${window.location.pathname}?w=${encoded}`;
+            history.replaceState(null, "", newURL);
+
             modal.classList.remove("show");
             document.addEventListener("keydown", handleKeyPress);
         }
 
         document.getElementById("custom-submit").onclick = submitCustomWord;
+
+        const shareButton = document.getElementById("custom-share");
+
+        shareButton.onclick = () => {
+            const value = input.value.trim().toLowerCase();
+
+            if (value.length !== 5 || !validWords.includes(value)) {
+                error.textContent = "Enter a valid 5-letter word first.";
+                return;
+            }
+
+            const encoded = btoa(value);
+            const link = `${window.location.origin}${window.location.pathname}?w=${encoded}`;
+
+            navigator.clipboard.writeText(link).then(() => {
+                const originalText = shareButton.textContent;
+                shareButton.textContent = "Copied to clipboard!";
+                shareButton.disabled = true;
+
+                setTimeout(() => {
+                    shareButton.textContent = originalText;
+                    shareButton.disabled = false;
+                }, 2000);
+            });
+        };
 
         input.onkeydown = e => {
             if (e.key === "Enter") submitCustomWord();
@@ -316,6 +365,10 @@ function showEndModal(won) {
     );
 
     breakdown.textContent = emojiLines.join("\n");
+
+    // Clean up URL (remove ?w=...)
+    const cleanURL = `${window.location.origin}${window.location.pathname}`;
+    history.replaceState(null, "", cleanURL);
 
     modal.classList.add("show");
 }
