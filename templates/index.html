@@ -18,7 +18,7 @@
         <div class="right-section">
             <button class="icon-button" id="theme-toggle" title="Toggle Light/Dark Mode">🌙</button>
             <button class="icon-button" id="ai-toggle" title="Toggle AI Solver">🤖</button>
-            <button class="icon-button" id="extra-button" title="Coming Soon">❓</button>
+            <button class="icon-button" id="custom-game" title="Custom Game">❓</button>
         </div>
     </header>
 
@@ -49,6 +49,17 @@
             </ul>
             <button id="info-close">Close</button>
         </div>
+    </div>
+
+    <!-- CUSTOM WORD MODAL -->
+    <div id="custom-modal" class="modal">
+    <div class="modal-content">
+        <h2>Start a Custom Game</h2>
+        <p>Enter a 5-letter word your friends can try to guess.</p>
+        <input id="custom-input" maxlength="5" autocomplete="off" />
+        <p id="custom-error" class="error-text"></p>
+        <button id="custom-submit">Start Game</button>
+    </div>
     </div>
 
     <!-- GAME END -->

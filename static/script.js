@@ -58,6 +58,52 @@ document.addEventListener("DOMContentLoaded", async () => {
             setTimeout(playSolverGuess, 800);
         }
     };
+
+    document.getElementById("custom-game").onclick = () => {
+        const modal = document.getElementById("custom-modal");
+        const input = document.getElementById("custom-input");
+        const error = document.getElementById("custom-error");
+
+        input.value = "";
+        error.textContent = "";
+        modal.classList.add("show");
+        input.focus();
+
+        document.removeEventListener("keydown", handleKeyPress);
+
+        function submitCustomWord() {
+            const value = input.value.trim().toLowerCase();
+
+            if (value.length !== 5) {
+                error.textContent = "Word must be exactly 5 letters.";
+                input.focus();
+                return;
+            }
+
+            if (!validWords.includes(value)) {
+                error.textContent = "That word isn't valid.";
+                input.focus();
+                return;
+            }
+
+            word = value;
+            guessHistory = [];
+            currentRow = 0;
+            currentGuess = "";
+            aiMode = false;
+
+            resetBoard();
+
+            modal.classList.remove("show");
+            document.addEventListener("keydown", handleKeyPress);
+        }
+
+        document.getElementById("custom-submit").onclick = submitCustomWord;
+
+        input.onkeydown = e => {
+            if (e.key === "Enter") submitCustomWord();
+        };
+    };
 });
 
 function createBoard() {
@@ -248,23 +294,28 @@ function showEndModal(won) {
     const subtext = document.getElementById("end-subtext");
     const breakdown = document.getElementById("end-breakdown");
 
+    const totalTurns = guessHistory.length;
+
     if (won) {
         title.textContent = aiMode ? "AI wins! 🤖" : "You win! 🎉";
-        subtext.textContent = aiMode ? "Solved with AI assistance." : "";
+        subtext.textContent = aiMode
+            ? `Solved in ${totalTurns} guesses with AI assistance.`
+            : `Solved in ${totalTurns} guesses!`;
     } else {
         title.textContent = aiMode ? "AI failed. 😢" : "You lost!";
         subtext.textContent = `The word was: ${word.toUpperCase()}`;
     }
 
-    // Generate emoji-based breakdown
-    const lines = guessHistory.map(({ result }) =>
+    // Build visual emoji feedback
+    const emojiLines = guessHistory.map(({ result }) =>
         result.map(r =>
             r === "correct" ? "🟩" :
-            r === "present" ? "🟨" :
-            "⬜"
+                r === "present" ? "🟨" :
+                    "⬜"
         ).join("")
     );
-    breakdown.textContent = lines.join("\n");
+
+    breakdown.textContent = emojiLines.join("\n");
 
     modal.classList.add("show");
 }
@@ -281,4 +332,15 @@ async function loadWordList(url) {
     const res = await fetch(url);
     const text = await res.text();
     return text.trim().split("\n").map(w => w.toLowerCase());
+}
+
+function resetBoard() {
+    const board = document.getElementById("game-board");
+    board.innerHTML = "";
+    createBoard();
+
+    document.querySelectorAll(".tile").forEach(tile => {
+        tile.textContent = "";
+        tile.className = "tile";
+    });
 }
