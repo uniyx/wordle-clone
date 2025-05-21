@@ -9,8 +9,8 @@ const themeToggle = document.getElementById("theme-toggle");
 
 document.addEventListener("DOMContentLoaded", async () => {
     [answerWords, validWords] = await Promise.all([
-        loadWordList("/static/answers.txt"),
-        loadWordList("/static/valid_guesses.txt")
+        loadWordList("/static/valid_guesses.txt"),
+        loadWordList("/static/answers.txt")
     ]);
     setWordLists(validWords, answerWords);
 
